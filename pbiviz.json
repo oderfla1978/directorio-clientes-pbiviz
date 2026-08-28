@@ -1,0 +1,25 @@
+{
+    "visual": {
+        "name": "directorioClientesAurum",
+        "displayName": "Directorio de Clientes Aurum",
+        "guid": "directorioClientesAurum4A2F9B01",
+        "visualClassName": "Visual",
+        "version": "1.0.0.0",
+        "description": "Directorio de clientes con búsqueda multicampo y virtualización, estilo Aurum",
+        "supportUrl": "",
+        "gitHubUrl": ""
+    },
+    "apiVersion": "5.3.0",
+    "author": {
+        "name": "Alfred",
+        "email": ""
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": [],
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": {},
+    "stringResources": []
+}

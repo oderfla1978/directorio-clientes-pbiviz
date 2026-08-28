@@ -1,0 +1,27 @@
+{
+    "dataRoles": [
+        {
+            "displayName": "Campos",
+            "name": "campos",
+            "kind": "GroupingOrMeasure"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "table": {
+                "rows": {
+                    "for": {
+                        "in": "campos"
+                    },
+                    "dataReductionAlgorithm": {
+                        "window": {
+                            "count": 30000
+                        }
+                    }
+                }
+            }
+        }
+    ],
+    "objects": {},
+    "privileges": []
+}
