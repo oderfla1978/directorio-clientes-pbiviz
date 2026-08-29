@@ -1,52 +1,279 @@
 name: Build PBIViz
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
 jobs:
   build:
+    name: Build Power BI Custom Visual
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+
+      # ------------------------------------------------------------
+      # 1. Checkout
+      # ------------------------------------------------------------
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      # ------------------------------------------------------------
+      # 2. Node.js
+      # ------------------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
+      # ------------------------------------------------------------
+      # 3. Environment
+      # ------------------------------------------------------------
       - name: Show environment
         run: |
-          echo "=== Environment ==="
+          echo "=========================================="
+          echo "ENVIRONMENT"
+          echo "=========================================="
           node --version
           npm --version
+          echo ""
+          echo "Working directory:"
+          pwd
+          echo ""
+          echo "Project files:"
+          find . -maxdepth 2 -type f \
+            ! -path './node_modules/*' \
+            ! -path './.git/*' \
+            | sort
+
+      # ------------------------------------------------------------
+      # 4. Install dependencies
+      # ------------------------------------------------------------
       - name: Install dependencies
         run: |
-          echo "=== Installing dependencies ==="
-          npm install --no-fund --no-audit
+          echo "=========================================="
+          echo "INSTALLING DEPENDENCIES"
+          echo "=========================================="
+
+          npm ci --no-fund --no-audit
+
+          echo ""
+          echo "Installed Power BI Visual Tools:"
+          npm list powerbi-visuals-tools --depth=0 || true
+
+      # ------------------------------------------------------------
+      # 5. Validate PBIViz project
+      # ------------------------------------------------------------
+      - name: Validate PBIViz project
+        run: |
+          echo "=========================================="
+          echo "VALIDATING PBIVIZ PROJECT"
+          echo "=========================================="
+
+          test -f pbiviz.json || {
+            echo "ERROR: pbiviz.json not found"
+            exit 1
+          }
+
+          test -f capabilities.json || {
+            echo "ERROR: capabilities.json not found"
+            exit 1
+          }
+
+          test -f package.json || {
+            echo "ERROR: package.json not found"
+            exit 1
+          }
+
+          test -f src/visual.ts || {
+            echo "ERROR: src/visual.ts not found"
+            exit 1
+          }
+
+          test -f style/visual.less || {
+            echo "ERROR: style/visual.less not found"
+            exit 1
+          }
+
+          test -f assets/icon.png || {
+            echo "ERROR: assets/icon.png not found"
+            exit 1
+          }
+
+          echo ""
+          echo "PBIViz project structure OK."
+
+      # ------------------------------------------------------------
+      # 6. Clean previous build
+      # ------------------------------------------------------------
+      - name: Clean build folders
+        run: |
+          echo "=========================================="
+          echo "CLEANING BUILD FOLDERS"
+          echo "=========================================="
+
+          rm -rf dist
+          rm -rf .tmp
+
+          mkdir -p dist
+
+          echo "dist and .tmp cleaned."
+
+      # ------------------------------------------------------------
+      # 7. Build / package PBIViz
+      # ------------------------------------------------------------
       - name: Build PBIViz package
         run: |
-          echo "=== Building PBIViz ==="
-          npm run package
-      - name: Find PBIViz package
+          echo "=========================================="
+          echo "BUILDING PBIVIZ PACKAGE"
+          echo "=========================================="
+
+          echo "Running:"
+          echo "npx pbiviz package"
+
+          npx pbiviz package
+
+      # ------------------------------------------------------------
+      # 8. Inspect build output
+      # ------------------------------------------------------------
+      - name: Inspect build output
+        if: always()
         run: |
-          echo "=== Searching for PBIViz files ==="
-          find . -type f -name "*.pbiviz" -print
+          echo "=========================================="
+          echo "BUILD OUTPUT"
+          echo "=========================================="
+
+          echo ""
+          echo "--- dist ---"
+
+          if [ -d "dist" ]; then
+            ls -lah dist
+          else
+            echo "dist directory does not exist"
+          fi
+
+          echo ""
+          echo "--- .tmp ---"
+
+          if [ -d ".tmp" ]; then
+            find .tmp -maxdepth 4 -type f | sort
+          else
+            echo ".tmp directory does not exist"
+          fi
+
+          echo ""
+          echo "--- ALL PBIVIZ FILES ---"
+
+          find . \
+            -type f \
+            -name "*.pbiviz" \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -print
+
+      # ------------------------------------------------------------
+      # 9. Verify package
+      # ------------------------------------------------------------
       - name: Verify PBIViz package
         run: |
-          echo "=== Verifying PBIViz package ==="
-          PBIVIZ_FILE=$(find . -type f -name "*.pbiviz" -print -quit)
+          echo "=========================================="
+          echo "VERIFYING PBIVIZ PACKAGE"
+          echo "=========================================="
+
+          PBIVIZ_FILE=$(find dist -maxdepth 1 -type f -name "*.pbiviz" -print -quit 2>/dev/null || true)
+
           if [ -z "$PBIVIZ_FILE" ]; then
-            echo "ERROR: No .pbiviz file was generated."
-            echo "=== Project files ==="
-            find . -maxdepth 3 -type f | sort
+            echo ""
+            echo "ERROR: No .pbiviz file was generated in dist/"
+            echo ""
+
+            echo "=== dist contents ==="
+            if [ -d "dist" ]; then
+              ls -lah dist
+            else
+              echo "dist does not exist"
+            fi
+
+            echo ""
+            echo "=== PBIVIZ search ==="
+            find . \
+              -type f \
+              -name "*.pbiviz" \
+              ! -path "./node_modules/*" \
+              ! -path "./.git/*" \
+              -print
+
+            echo ""
+            echo "=== Project structure ==="
+            find . -maxdepth 3 -type f \
+              ! -path "./node_modules/*" \
+              ! -path "./.git/*" \
+              | sort
+
             exit 1
           fi
-          echo "SUCCESS: PBIViz found:"
+
+          echo ""
+          echo "SUCCESS!"
+          echo ""
+          echo "PBIViz package:"
           echo "$PBIVIZ_FILE"
+          echo ""
+
           ls -lh "$PBIVIZ_FILE"
-      - name: Upload PBIViz
+
+          echo ""
+          echo "File type:"
+          file "$PBIVIZ_FILE"
+
+      # ------------------------------------------------------------
+      # 10. Rename package to predictable filename
+      # ------------------------------------------------------------
+      - name: Prepare PBIViz artifact
+        run: |
+          echo "=========================================="
+          echo "PREPARING ARTIFACT"
+          echo "=========================================="
+
+          PBIVIZ_FILE=$(find dist -maxdepth 1 -type f -name "*.pbiviz" -print -quit)
+
+          if [ -z "$PBIVIZ_FILE" ]; then
+            echo "ERROR: PBIViz package not found."
+            exit 1
+          fi
+
+          cp "$PBIVIZ_FILE" \
+            "dist/DirectorioClientesAurum.pbiviz"
+
+          echo ""
+          echo "Final artifact:"
+          ls -lh dist/DirectorioClientesAurum.pbiviz
+
+      # ------------------------------------------------------------
+      # 11. Upload artifact
+      # ------------------------------------------------------------
+      - name: Upload PBIViz artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pbiviz-package
-          path: "**/*.pbiviz"
+          name: DirectorioClientesAurum-PBIViz
+          path: dist/DirectorioClientesAurum.pbiviz
           if-no-files-found: error
+
+      # ------------------------------------------------------------
+      # 12. Final summary
+      # ------------------------------------------------------------
+      - name: Build summary
+        run: |
+          echo "=========================================="
+          echo "BUILD COMPLETED"
+          echo "=========================================="
+          echo ""
+          echo "PBIViz:"
+          ls -lh dist/DirectorioClientesAurum.pbiviz
+          echo ""
+          echo "Artifact:"
+          echo "DirectorioClientesAurum-PBIViz"
+          echo ""
+          echo "STATUS: SUCCESS"
