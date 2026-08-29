@@ -6,6 +6,10 @@
     "start": "pbiviz start",
     "package": "pbiviz package"
   },
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "devDependencies": {
     "powerbi-visuals-api": "5.3.0",
     "powerbi-visuals-tools": "5.3.0",
