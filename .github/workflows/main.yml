@@ -1,56 +1,73 @@
 name: Build Power BI Custom Visual
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Show environment
         run: |
           echo "=========================================="
           echo "ENVIRONMENT"
           echo "=========================================="
+
           node --version
           npm --version
+
           echo ""
           echo "Working directory:"
           pwd
+
           echo ""
           echo "Project files:"
           find . -maxdepth 3 -type f \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             | sort
+
       - name: Install dependencies
         run: |
           echo "=========================================="
           echo "INSTALLING DEPENDENCIES"
           echo "=========================================="
+
           npm install --no-fund --no-audit
+
           echo ""
           echo "Dependencies installed."
+
       - name: Verify PBIViz tools
         run: |
           echo "=========================================="
           echo "VERIFYING PBIVIZ TOOL"
           echo "=========================================="
+
           npx pbiviz --version
+
       - name: Validate project files
         run: |
           echo "=========================================="
           echo "VALIDATING PROJECT"
           echo "=========================================="
+
           test -f package.json
           test -f package-lock.json
           test -f pbiviz.json
@@ -59,66 +76,87 @@ jobs:
           test -f src/visual.ts
           test -f style/visual.less
           test -f assets/icon.png
+
           echo ""
           echo "All required project files exist."
+
       - name: Build PBIViz package
         run: |
           echo "=========================================="
           echo "BUILDING PBIVIZ PACKAGE"
           echo "=========================================="
+
           rm -rf dist
           mkdir -p dist
+
           echo ""
           echo "=== PBIViz version ==="
           npx pbiviz --version
+
           echo ""
           echo "=== pbiviz.json ==="
           cat pbiviz.json
+
           echo ""
           echo "=== package.json scripts ==="
           npm pkg get scripts
+
           echo ""
           echo "=== TypeScript version ==="
           npx tsc --version
+
           echo ""
           echo "=== Running PBIViz package ==="
+
           npx pbiviz package --verbose
+
           echo ""
           echo "=========================================="
           echo "PBIVIZ COMMAND FINISHED"
           echo "=========================================="
+
           echo ""
           echo "=== Root directory ==="
           ls -lah
+
           echo ""
           echo "=== dist directory ==="
           ls -lah dist || true
+
           echo ""
           echo "=== Searching PBIViz files ==="
+
           find . \
             -type f \
             -name "*.pbiviz" \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print
+
           echo ""
           echo "=== Searching ZIP/package files ==="
+
           find . \
             -type f \
             \( -name "*.pbiviz" -o -name "*.zip" \) \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print
+
       - name: Diagnose generated files
         run: |
           echo "=========================================="
           echo "DIAGNOSING GENERATED FILES"
           echo "=========================================="
+
           echo ""
           echo "=== dist ==="
+
           find dist -maxdepth 5 -type f -print 2>/dev/null || true
+
           echo ""
           echo "=== ALL PACKAGE-LIKE FILES ==="
+
           find . \
             -type f \
             \( \
@@ -130,79 +168,175 @@ jobs:
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print
+
           echo ""
           echo "=== ALL FILES CREATED/CHANGED IN LAST 5 MINUTES ==="
+
           find . \
             -type f \
             -mmin -5 \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print | sort
+
           echo ""
           echo "=== DIST DETAILS ==="
+
           ls -lahR dist 2>/dev/null || true
+
       - name: Locate PBIViz package
         id: locate_pbiviz
         run: |
           echo "=========================================="
           echo "LOCATING PBIVIZ PACKAGE"
           echo "=========================================="
-          PBIVIZ_FILE=$(find . \
+
+          PBIVIZ_FILE=$(find dist \
             -type f \
             -name "*.pbiviz" \
-            ! -path "./node_modules/*" \
-            ! -path "./.git/*" \
             -print \
             | head -n 1)
+
           if [ -z "$PBIVIZ_FILE" ]; then
+
             echo ""
-            echo "ERROR: NO PBIVIZ FILE FOUND."
+            echo "ERROR: NO PBIVIZ FILE FOUND IN DIST."
             echo ""
-            echo "The pbiviz command completed, but no .pbiviz file exists."
+
+            echo "=== DIST CONTENTS ==="
+
+            find dist \
+              -maxdepth 10 \
+              -print \
+              2>/dev/null || true
+
             echo ""
-            echo "This means the problem is BEFORE upload-artifact."
-            echo ""
-            echo "PBIViz is expected to generate the package in dist/."
-            echo ""
-            echo "=== FINAL DIST CONTENTS ==="
-            find dist -maxdepth 10 -print 2>/dev/null || true
-            echo ""
-            echo "=== FINAL PROJECT CONTENTS ==="
+            echo "=== PROJECT CONTENTS ==="
+
             find . \
               -maxdepth 4 \
               -type f \
               ! -path "./node_modules/*" \
               ! -path "./.git/*" \
               | sort
+
             exit 1
           fi
+
           echo ""
           echo "PBIVIZ FOUND:"
           echo "$PBIVIZ_FILE"
+
           echo ""
           echo "FILE INFORMATION:"
           ls -lh "$PBIVIZ_FILE"
+
           echo ""
           echo "ABSOLUTE PATH:"
           realpath "$PBIVIZ_FILE"
+
           echo "PBIVIZ_FILE=$PBIVIZ_FILE" >> "$GITHUB_ENV"
-      - name: Prepare artifact
+
+      - name: Prepare clean artifact
         run: |
           echo "=========================================="
-          echo "PREPARING ARTIFACT"
+          echo "PREPARING CLEAN ARTIFACT"
           echo "=========================================="
+
+          rm -rf artifact
           mkdir -p artifact
-          cp "$PBIVIZ_FILE" artifact/DirectorioClientesAurum.pbiviz
+
+          cp "$PBIVIZ_FILE" \
+            "artifact/DirectorioClientesAurum.pbiviz"
+
           echo ""
-          echo "Artifact contents:"
+          echo "=== ARTIFACT DIRECTORY ==="
+
           ls -lah artifact
+
           echo ""
-          echo "Final PBIViz:"
+          echo "=== ARTIFACT CONTENTS ==="
+
+          find artifact \
+            -maxdepth 1 \
+            -type f \
+            -print
+
+          echo ""
+          echo "=== PBIVIZ FILE ==="
+
           ls -lh artifact/DirectorioClientesAurum.pbiviz
+
+          echo ""
+          echo "=== FILE TYPE ==="
+
+          file artifact/DirectorioClientesAurum.pbiviz
+
+          echo ""
+          echo "=== SHA256 ==="
+
+          sha256sum artifact/DirectorioClientesAurum.pbiviz
+
+      - name: Verify clean artifact
+        run: |
+          echo "=========================================="
+          echo "VERIFYING CLEAN ARTIFACT"
+          echo "=========================================="
+
+          FILE_COUNT=$(find artifact \
+            -maxdepth 1 \
+            -type f \
+            | wc -l)
+
+          echo ""
+          echo "Files in artifact directory: $FILE_COUNT"
+
+          if [ "$FILE_COUNT" -ne 1 ]; then
+            echo ""
+            echo "ERROR: Artifact directory must contain exactly one file."
+            echo ""
+
+            find artifact \
+              -maxdepth 2 \
+              -print
+
+            exit 1
+          fi
+
+          test -f artifact/DirectorioClientesAurum.pbiviz
+
+          echo ""
+          echo "SUCCESS: Clean PBIViz artifact verified."
+
       - name: Upload PBIViz artifact
         uses: actions/upload-artifact@v4
         with:
           name: DirectorioClientesAurum-PBIViz
-          path: artifact/DirectorioClientesAurum.pbiviz
+          path: artifact/
           if-no-files-found: error
           retention-days: 30
+          compression-level: 6
+          overwrite: true
+
+      - name: Build summary
+        run: |
+          echo "=========================================="
+          echo "BUILD COMPLETE"
+          echo "=========================================="
+
+          echo ""
+          echo "PBIViz file:"
+          echo "DirectorioClientesAurum.pbiviz"
+
+          echo ""
+          echo "Artifact:"
+          echo "DirectorioClientesAurum-PBIViz"
+
+          echo ""
+          echo "The GitHub Actions artifact contains ONLY:"
+          echo "DirectorioClientesAurum.pbiviz"
+
+          echo ""
+          echo "=========================================="
+          echo "SUCCESS"
+          echo "=========================================="
