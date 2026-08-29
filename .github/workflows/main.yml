@@ -2,7 +2,8 @@ name: Build PBIViz
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -13,11 +14,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
+
+      - name: Show environment
+        run: |
+          node --version
+          npm --version
 
       - name: Install dependencies
         run: npm install --no-fund --no-audit
@@ -27,7 +32,7 @@ jobs:
 
       - name: Verify PBIViz
         run: |
-          echo "Archivos PBIViz generados:"
+          echo "=== Archivos PBIViz generados ==="
           ls -lah *.pbiviz
 
       - name: Upload PBIViz
