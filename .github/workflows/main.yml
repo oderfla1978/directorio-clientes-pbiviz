@@ -16,16 +16,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-fund --no-audit
 
       - name: Build PBIViz package
         run: npm run package
 
-      - name: Upload artifact
+      - name: Verify PBIViz
+        run: |
+          echo "Archivos PBIViz generados:"
+          ls -lah *.pbiviz
+
+      - name: Upload PBIViz
         uses: actions/upload-artifact@v4
         with:
           name: pbiviz-package
-          path: ./*.pbiviz
+          path: "*.pbiviz"
+          if-no-files-found: error
