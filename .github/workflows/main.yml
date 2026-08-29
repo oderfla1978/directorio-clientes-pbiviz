@@ -27,14 +27,17 @@ jobs:
           echo "=========================================="
           echo "ENVIRONMENT"
           echo "=========================================="
+
           node --version
           npm --version
+
           echo ""
           echo "Working directory:"
           pwd
+
           echo ""
           echo "Project files:"
-          find . -maxdepth 2 -type f \
+          find . -maxdepth 3 -type f \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             | sort
@@ -48,7 +51,7 @@ jobs:
           npm install --no-fund --no-audit
 
           echo ""
-          echo "Dependencies installed successfully."
+          echo "Dependencies installed."
 
       - name: Verify PBIViz tools
         run: |
@@ -58,18 +61,23 @@ jobs:
 
           npx pbiviz --version
 
-      - name: Validate project
+      - name: Validate project files
         run: |
           echo "=========================================="
-          echo "VALIDATING PBIVIZ PROJECT"
+          echo "VALIDATING PROJECT"
           echo "=========================================="
 
+          test -f package.json
+          test -f package-lock.json
           test -f pbiviz.json
           test -f capabilities.json
-          test -f package.json
+          test -f tsconfig.json
+          test -f src/visual.ts
+          test -f style/visual.less
           test -f assets/icon.png
 
-          echo "Required project files found."
+          echo ""
+          echo "All required project files exist."
 
       - name: Build PBIViz package
         run: |
@@ -80,18 +88,42 @@ jobs:
           rm -rf dist
           mkdir -p dist
 
-          npx pbiviz package
+          echo ""
+          echo "=== PBIViz version ==="
+          npx pbiviz --version
 
           echo ""
-          echo "Build command completed."
+          echo "=== pbiviz.json ==="
+          cat pbiviz.json
 
-      - name: Locate PBIViz package
-        run: |
+          echo ""
+          echo "=== package.json scripts ==="
+          npm pkg get scripts
+
+          echo ""
+          echo "=== TypeScript version ==="
+          npx tsc --version
+
+          echo ""
+          echo "=== Running PBIViz package ==="
+
+          npx pbiviz package --verbose
+
+          echo ""
           echo "=========================================="
-          echo "LOCATING PBIVIZ PACKAGE"
+          echo "PBIVIZ COMMAND FINISHED"
           echo "=========================================="
 
-          echo "All generated PBIViz files:"
+          echo ""
+          echo "=== Root directory ==="
+          ls -lah
+
+          echo ""
+          echo "=== dist directory ==="
+          ls -lah dist || true
+
+          echo ""
+          echo "=== Searching PBIViz files ==="
           find . \
             -type f \
             -name "*.pbiviz" \
@@ -99,84 +131,11 @@ jobs:
             ! -path "./.git/*" \
             -print
 
-          PBIVIZ_FILE=$(find . \
+          echo ""
+          echo "=== Searching ZIP/package files ==="
+          find . \
             -type f \
-            -name "*.pbiviz" \
+            \( -name "*.pbiviz" -o -name "*.zip" \) \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
-            -print -quit)
-
-          if [ -z "$PBIVIZ_FILE" ]; then
-            echo ""
-            echo "ERROR: No .pbiviz file was generated."
-            echo ""
-            echo "=== dist contents ==="
-            find dist -maxdepth 3 -type f -print 2>/dev/null || true
-            echo ""
-            echo "=== Project contents ==="
-            find . \
-              -maxdepth 3 \
-              -type f \
-              ! -path "./node_modules/*" \
-              ! -path "./.git/*" \
-              | sort
-            exit 1
-          fi
-
-          echo ""
-          echo "SUCCESS: PBIViz package found:"
-          echo "$PBIVIZ_FILE"
-          ls -lh "$PBIVIZ_FILE"
-
-      - name: Copy PBIViz to dist
-        run: |
-          echo "=========================================="
-          echo "PREPARING DIST"
-          echo "=========================================="
-
-          PBIVIZ_FILE=$(find . \
-            -type f \
-            -name "*.pbiviz" \
-            ! -path "./node_modules/*" \
-            ! -path "./.git/*" \
-            -print -quit)
-
-          cp "$PBIVIZ_FILE" dist/
-
-          echo ""
-          echo "dist contents:"
-          ls -lah dist
-
-      - name: Upload PBIViz artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: directorio-clientes-pbiviz
-          path: dist/*.pbiviz
-          if-no-files-found: error
-
-      - name: Final verification
-        run: |
-          echo "=========================================="
-          echo "FINAL VERIFICATION"
-          echo "=========================================="
-
-          PBIVIZ_FILE=$(find dist \
-            -maxdepth 1 \
-            -type f \
-            -name "*.pbiviz" \
-            -print -quit)
-
-          if [ -z "$PBIVIZ_FILE" ]; then
-            echo "ERROR: Final PBIViz verification failed."
-            exit 1
-          fi
-
-          echo ""
-          echo "=========================================="
-          echo "BUILD SUCCESSFUL"
-          echo "=========================================="
-          echo ""
-          echo "PBIViz:"
-          echo "$PBIVIZ_FILE"
-          echo ""
-          ls -lh "$PBIVIZ_FILE"
+            -print
