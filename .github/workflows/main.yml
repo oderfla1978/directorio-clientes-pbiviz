@@ -109,13 +109,100 @@ jobs:
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print
-      # ============================================================
-      # ONLY NEW STEP: UPLOAD THE GENERATED PBIVIZ AS ARTIFACT
-      # ============================================================
+      - name: Diagnose generated files
+        run: |
+          echo "=========================================="
+          echo "DIAGNOSING GENERATED FILES"
+          echo "=========================================="
+          echo ""
+          echo "=== dist ==="
+          find dist -maxdepth 5 -type f -print 2>/dev/null || true
+          echo ""
+          echo "=== ALL PACKAGE-LIKE FILES ==="
+          find . \
+            -type f \
+            \( \
+              -name "*.pbiviz" \
+              -o -name "*.zip" \
+              -o -name "*.tgz" \
+              -o -name "*.tar.gz" \
+            \) \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -print
+          echo ""
+          echo "=== ALL FILES CREATED/CHANGED IN LAST 5 MINUTES ==="
+          find . \
+            -type f \
+            -mmin -5 \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -print | sort
+          echo ""
+          echo "=== DIST DETAILS ==="
+          ls -lahR dist 2>/dev/null || true
+      - name: Locate PBIViz package
+        id: locate_pbiviz
+        run: |
+          echo "=========================================="
+          echo "LOCATING PBIVIZ PACKAGE"
+          echo "=========================================="
+          PBIVIZ_FILE=$(find . \
+            -type f \
+            -name "*.pbiviz" \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -print \
+            | head -n 1)
+          if [ -z "$PBIVIZ_FILE" ]; then
+            echo ""
+            echo "ERROR: NO PBIVIZ FILE FOUND."
+            echo ""
+            echo "The pbiviz command completed, but no .pbiviz file exists."
+            echo ""
+            echo "This means the problem is BEFORE upload-artifact."
+            echo ""
+            echo "PBIViz is expected to generate the package in dist/."
+            echo ""
+            echo "=== FINAL DIST CONTENTS ==="
+            find dist -maxdepth 10 -print 2>/dev/null || true
+            echo ""
+            echo "=== FINAL PROJECT CONTENTS ==="
+            find . \
+              -maxdepth 4 \
+              -type f \
+              ! -path "./node_modules/*" \
+              ! -path "./.git/*" \
+              | sort
+            exit 1
+          fi
+          echo ""
+          echo "PBIVIZ FOUND:"
+          echo "$PBIVIZ_FILE"
+          echo ""
+          echo "FILE INFORMATION:"
+          ls -lh "$PBIVIZ_FILE"
+          echo ""
+          echo "ABSOLUTE PATH:"
+          realpath "$PBIVIZ_FILE"
+          echo "PBIVIZ_FILE=$PBIVIZ_FILE" >> "$GITHUB_ENV"
+      - name: Prepare artifact
+        run: |
+          echo "=========================================="
+          echo "PREPARING ARTIFACT"
+          echo "=========================================="
+          mkdir -p artifact
+          cp "$PBIVIZ_FILE" artifact/DirectorioClientesAurum.pbiviz
+          echo ""
+          echo "Artifact contents:"
+          ls -lah artifact
+          echo ""
+          echo "Final PBIViz:"
+          ls -lh artifact/DirectorioClientesAurum.pbiviz
       - name: Upload PBIViz artifact
         uses: actions/upload-artifact@v4
         with:
           name: DirectorioClientesAurum-PBIViz
-          path: dist/*.pbiviz
+          path: artifact/DirectorioClientesAurum.pbiviz
           if-no-files-found: error
           retention-days: 30
