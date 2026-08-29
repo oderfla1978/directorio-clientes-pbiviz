@@ -114,9 +114,13 @@
     padding: 0 12px;
     box-sizing: border-box;
     border-bottom: 1px solid fade(@aurum-borde, 60%);
+    transition: background 0.15s ease;
 }
 .aurum-fila-par {
     background: fade(@aurum-ivory, 3%);
+}
+.aurum-fila:hover {
+    background: fade(@aurum-gold, 8%);
 }
 .aurum-fila-celda {
     flex: 1;
@@ -124,4 +128,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     padding-right: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aurum-buscar-btn,
+    .aurum-buscar-input,
+    .aurum-fila {
+        transition: none;
+    }
 }
