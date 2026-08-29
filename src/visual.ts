@@ -25,10 +25,14 @@ export class Visual implements IVisual {
     private filasFiltradas: FilaCliente[] = [];
     private debounceTimer: number | null = null;
     private buscadorAbierto: boolean = false;
-    constructor(options: VisualConstructorOptions) {
-        this.target = options.element;
-        this.construirEsqueleto();
+    constructor(options?: VisualConstructorOptions) {
+    if (!options) {
+        return;
     }
+
+    this.target = options.element;
+    this.construirEsqueleto();
+}
     private construirEsqueleto(): void {
         this.contenedorRaiz = document.createElement("div");
         this.contenedorRaiz.className = "aurum-directorio";
