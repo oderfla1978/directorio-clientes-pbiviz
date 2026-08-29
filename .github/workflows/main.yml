@@ -1,44 +1,52 @@
 name: Build PBIViz
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Show environment
         run: |
+          echo "=== Environment ==="
           node --version
           npm --version
-
       - name: Install dependencies
-        run: npm install --no-fund --no-audit
-
+        run: |
+          echo "=== Installing dependencies ==="
+          npm install --no-fund --no-audit
       - name: Build PBIViz package
-        run: npm run package
-
-      - name: Verify PBIViz
-  run: |
-    echo "=== Buscando archivos PBIViz ==="
-    find . -type f -name "*.pbiviz" -print
-
-    - name: Upload PBIViz
-  uses: actions/upload-artifact@v4
-  with:
-    name: pbiviz-package
-    path: "**/*.pbiviz"
-    if-no-files-found: error
-
+        run: |
+          echo "=== Building PBIViz ==="
+          npm run package
+      - name: Find PBIViz package
+        run: |
+          echo "=== Searching for PBIViz files ==="
+          find . -type f -name "*.pbiviz" -print
+      - name: Verify PBIViz package
+        run: |
+          echo "=== Verifying PBIViz package ==="
+          PBIVIZ_FILE=$(find . -type f -name "*.pbiviz" -print -quit)
+          if [ -z "$PBIVIZ_FILE" ]; then
+            echo "ERROR: No .pbiviz file was generated."
+            echo "=== Project files ==="
+            find . -maxdepth 3 -type f | sort
+            exit 1
+          fi
+          echo "SUCCESS: PBIViz found:"
+          echo "$PBIVIZ_FILE"
+          ls -lh "$PBIVIZ_FILE"
+      - name: Upload PBIViz
+        uses: actions/upload-artifact@v4
+        with:
+          name: pbiviz-package
+          path: "**/*.pbiviz"
+          if-no-files-found: error
