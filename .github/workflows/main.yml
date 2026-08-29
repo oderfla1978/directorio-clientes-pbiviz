@@ -1,212 +1,182 @@
-name: Build Power BI Visual
+name: Build Power BI Custom Visual
+
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
-    name: Build PBIViz
     runs-on: ubuntu-latest
+
     steps:
-      # ============================================================
-      # CHECKOUT
-      # ============================================================
       - name: Checkout repository
         uses: actions/checkout@v4
-      # ============================================================
-      # NODE
-      # ============================================================
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      # ============================================================
-      # ENVIRONMENT
-      # ============================================================
+
       - name: Show environment
         run: |
           echo "=========================================="
           echo "ENVIRONMENT"
           echo "=========================================="
-          echo "Node: $(node --version)"
-          echo "NPM:  $(npm --version)"
-          echo "PWD:  $(pwd)"
+          node --version
+          npm --version
           echo ""
-          echo "=== Repository files ==="
-          find . \
-            -maxdepth 2 \
-            -type f \
+          echo "Working directory:"
+          pwd
+          echo ""
+          echo "Project files:"
+          find . -maxdepth 2 -type f \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             | sort
-      # ============================================================
-      # INSTALL DEPENDENCIES
-      # ============================================================
+
       - name: Install dependencies
         run: |
           echo "=========================================="
           echo "INSTALLING DEPENDENCIES"
           echo "=========================================="
-          if [ -f package-lock.json ]; then
-            echo "package-lock.json found"
-            npm ci --no-fund --no-audit
-          else
-            echo "package-lock.json NOT found"
-            echo "Generating dependencies with npm install..."
-            npm install --no-fund --no-audit
-          fi
+
+          npm install --no-fund --no-audit
+
           echo ""
-          echo "=== Installed Power BI tools ==="
+          echo "Dependencies installed successfully."
+
+      - name: Verify PBIViz tools
+        run: |
+          echo "=========================================="
+          echo "VERIFYING PBIVIZ TOOL"
+          echo "=========================================="
+
           npx pbiviz --version
-      # ============================================================
-      # VALIDATE PROJECT
-      # ============================================================
-      - name: Validate PBIViz project
+
+      - name: Validate project
         run: |
           echo "=========================================="
           echo "VALIDATING PBIVIZ PROJECT"
           echo "=========================================="
-          echo ""
-          echo "=== pbiviz.json ==="
-          cat pbiviz.json
-          echo ""
-          echo "=== package.json ==="
-          cat package.json
-          echo ""
-          echo "=== capabilities.json ==="
-          cat capabilities.json
-          echo ""
-          echo "=== Source files ==="
-          find src -type f -maxdepth 5 -print | sort
-          echo ""
-          echo "=== Style files ==="
-          find style -type f -maxdepth 5 -print | sort
-      # ============================================================
-      # BUILD
-      # ============================================================
-      - name: Build PBIViz
+
+          test -f pbiviz.json
+          test -f capabilities.json
+          test -f package.json
+          test -f assets/icon.png
+
+          echo "Required project files found."
+
+      - name: Build PBIViz package
         run: |
           echo "=========================================="
           echo "BUILDING PBIVIZ PACKAGE"
           echo "=========================================="
+
           rm -rf dist
           mkdir -p dist
-          echo ""
-          echo "Node:"
-          node --version
-          echo ""
-          echo "NPM:"
-          npm --version
-          echo ""
-          echo "PBIViz:"
-          npx pbiviz --version
-          echo ""
-          echo "=========================================="
-          echo "RUNNING PBIVIZ PACKAGE"
-          echo "=========================================="
-          echo ""
-          set +e
+
           npx pbiviz package
-          BUILD_EXIT=$?
-          set -e
+
           echo ""
+          echo "Build command completed."
+
+      - name: Locate PBIViz package
+        run: |
           echo "=========================================="
-          echo "PBIVIZ EXIT CODE: $BUILD_EXIT"
+          echo "LOCATING PBIVIZ PACKAGE"
           echo "=========================================="
-          echo ""
-          echo "=== dist contents ==="
-          ls -lah dist 2>/dev/null || true
-          echo ""
-          echo "=== ALL PBIVIZ FILES ==="
+
+          echo "All generated PBIViz files:"
           find . \
             -type f \
             -name "*.pbiviz" \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print
-          if [ "$BUILD_EXIT" -ne 0 ]; then
-            echo ""
-            echo "=========================================="
-            echo "ERROR: PBIVIZ PACKAGE FAILED"
-            echo "=========================================="
-            exit "$BUILD_EXIT"
-          fi
-      # ============================================================
-      # VERIFY
-      # ============================================================
-      - name: Verify PBIViz package
-        run: |
-          echo "=========================================="
-          echo "VERIFYING PBIVIZ PACKAGE"
-          echo "=========================================="
-          PBIVIZ_FILE=$(find dist \
-            -maxdepth 1 \
+
+          PBIVIZ_FILE=$(find . \
             -type f \
             -name "*.pbiviz" \
-            -print \
-            -quit 2>/dev/null || true)
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -print -quit)
+
           if [ -z "$PBIVIZ_FILE" ]; then
             echo ""
-            echo "ERROR: No .pbiviz file was generated in dist/"
+            echo "ERROR: No .pbiviz file was generated."
             echo ""
             echo "=== dist contents ==="
-            ls -lah dist 2>/dev/null || true
+            find dist -maxdepth 3 -type f -print 2>/dev/null || true
             echo ""
-            echo "=== PBIVIZ search ==="
+            echo "=== Project contents ==="
             find . \
+              -maxdepth 3 \
               -type f \
-              -name "*.pbiviz" \
               ! -path "./node_modules/*" \
               ! -path "./.git/*" \
-              -print
-            echo ""
-            echo "=========================================="
-            echo "BUILD FAILED: PBIVIZ NOT FOUND"
-            echo "=========================================="
+              | sort
             exit 1
           fi
+
           echo ""
-          echo "SUCCESS: PBIViz found"
+          echo "SUCCESS: PBIViz package found:"
           echo "$PBIVIZ_FILE"
-          echo ""
-          echo "=== File information ==="
           ls -lh "$PBIVIZ_FILE"
-      # ============================================================
-      # UPLOAD ARTIFACT
-      # ============================================================
+
+      - name: Copy PBIViz to dist
+        run: |
+          echo "=========================================="
+          echo "PREPARING DIST"
+          echo "=========================================="
+
+          PBIVIZ_FILE=$(find . \
+            -type f \
+            -name "*.pbiviz" \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            -print -quit)
+
+          cp "$PBIVIZ_FILE" dist/
+
+          echo ""
+          echo "dist contents:"
+          ls -lah dist
+
       - name: Upload PBIViz artifact
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: directorio-clientes-pbiviz
           path: dist/*.pbiviz
           if-no-files-found: error
-          retention-days: 30
-      # ============================================================
-      # FINAL SUMMARY
-      # ============================================================
-      - name: Build summary
-        if: success()
+
+      - name: Final verification
         run: |
           echo "=========================================="
-          echo "BUILD SUCCESSFUL"
+          echo "FINAL VERIFICATION"
           echo "=========================================="
+
           PBIVIZ_FILE=$(find dist \
             -maxdepth 1 \
             -type f \
             -name "*.pbiviz" \
-            -print \
-            -quit)
+            -print -quit)
+
+          if [ -z "$PBIVIZ_FILE" ]; then
+            echo "ERROR: Final PBIViz verification failed."
+            exit 1
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "BUILD SUCCESSFUL"
+          echo "=========================================="
           echo ""
           echo "PBIViz:"
           echo "$PBIVIZ_FILE"
           echo ""
-          echo "Size:"
-          du -h "$PBIVIZ_FILE"
-          echo ""
-          echo "Artifact: directorio-clientes-pbiviz"
-          echo "=========================================="
+          ls -lh "$PBIVIZ_FILE"
