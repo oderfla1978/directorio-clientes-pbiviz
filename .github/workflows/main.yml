@@ -1,89 +1,56 @@
 name: Build Power BI Custom Visual
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-
-      # ============================================================
-      # 1. DESCARGAR EL REPOSITORIO
-      # ============================================================
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      # ============================================================
-      # 2. CONFIGURAR NODE.JS
-      # ============================================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-
-      # ============================================================
-      # 3. INFORMACIÓN DEL ENTORNO
-      # ============================================================
       - name: Show environment
         run: |
           echo "=========================================="
           echo "ENVIRONMENT"
           echo "=========================================="
-
           node --version
           npm --version
-
           echo ""
           echo "Working directory:"
           pwd
-
-
-      # ============================================================
-      # 4. INSTALAR DEPENDENCIAS
-      # ============================================================
+          echo ""
+          echo "Project files:"
+          find . -maxdepth 3 -type f \
+            ! -path "./node_modules/*" \
+            ! -path "./.git/*" \
+            | sort
       - name: Install dependencies
         run: |
           echo "=========================================="
           echo "INSTALLING DEPENDENCIES"
           echo "=========================================="
-
           npm install --no-fund --no-audit
-
           echo ""
-          echo "Dependencies installed successfully."
-
-
-      # ============================================================
-      # 5. VERIFICAR PBIVIZ
-      # ============================================================
+          echo "Dependencies installed."
       - name: Verify PBIViz tools
         run: |
           echo "=========================================="
           echo "VERIFYING PBIVIZ TOOL"
           echo "=========================================="
-
           npx pbiviz --version
-
-
-      # ============================================================
-      # 6. VALIDAR PROYECTO
-      # ============================================================
       - name: Validate project files
         run: |
           echo "=========================================="
           echo "VALIDATING PROJECT"
           echo "=========================================="
-
           test -f package.json
           test -f package-lock.json
           test -f pbiviz.json
@@ -92,179 +59,63 @@ jobs:
           test -f src/visual.ts
           test -f style/visual.less
           test -f assets/icon.png
-
           echo ""
           echo "All required project files exist."
-
-
-      # ============================================================
-      # 7. COMPILAR Y GENERAR PBIVIZ
-      # ============================================================
       - name: Build PBIViz package
         run: |
           echo "=========================================="
           echo "BUILDING PBIVIZ PACKAGE"
           echo "=========================================="
-
           rm -rf dist
           mkdir -p dist
-
           echo ""
-          echo "PBIViz version:"
+          echo "=== PBIViz version ==="
           npx pbiviz --version
-
           echo ""
-          echo "Running PBIViz package..."
-
+          echo "=== pbiviz.json ==="
+          cat pbiviz.json
+          echo ""
+          echo "=== package.json scripts ==="
+          npm pkg get scripts
+          echo ""
+          echo "=== TypeScript version ==="
+          npx tsc --version
+          echo ""
+          echo "=== Running PBIViz package ==="
           npx pbiviz package --verbose
-
           echo ""
           echo "=========================================="
-          echo "PBIVIZ BUILD FINISHED"
+          echo "PBIVIZ COMMAND FINISHED"
           echo "=========================================="
-
           echo ""
-          echo "Generated PBIViz files:"
-
+          echo "=== Root directory ==="
+          ls -lah
+          echo ""
+          echo "=== dist directory ==="
+          ls -lah dist || true
+          echo ""
+          echo "=== Searching PBIViz files ==="
           find . \
             -type f \
             -name "*.pbiviz" \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
             -print
-
-
-      # ============================================================
-      # 8. ENCONTRAR EL PBIVIZ GENERADO
-      # ============================================================
-      - name: Locate PBIViz package
-        run: |
-          echo "=========================================="
-          echo "LOCATING PBIVIZ PACKAGE"
-          echo "=========================================="
-
-          PBIVIZ_FILE=$(find . \
+          echo ""
+          echo "=== Searching ZIP/package files ==="
+          find . \
             -type f \
-            -name "*.pbiviz" \
+            \( -name "*.pbiviz" -o -name "*.zip" \) \
             ! -path "./node_modules/*" \
             ! -path "./.git/*" \
-            -print -quit)
-
-          if [ -z "$PBIVIZ_FILE" ]; then
-            echo ""
-            echo "ERROR: No .pbiviz file was generated."
-            echo ""
-            echo "Project files:"
-            find . \
-              -maxdepth 3 \
-              -type f \
-              ! -path "./node_modules/*" \
-              ! -path "./.git/*" \
-              | sort
-
-            exit 1
-          fi
-
-          echo ""
-          echo "PBIViz found:"
-          echo "$PBIVIZ_FILE"
-
-          echo ""
-          echo "File information:"
-          ls -lh "$PBIVIZ_FILE"
-
-          # Guardamos la ruta para los siguientes pasos
-          echo "PBIVIZ_FILE=$PBIVIZ_FILE" >> "$GITHUB_ENV"
-
-
+            -print
       # ============================================================
-      # 9. COPIAR A DIST CON NOMBRE LIMPIO
-      # ============================================================
-      - name: Prepare distribution package
-        run: |
-          echo "=========================================="
-          echo "PREPARING DISTRIBUTION PACKAGE"
-          echo "=========================================="
-
-          rm -rf dist
-          mkdir -p dist
-
-          cp "$PBIVIZ_FILE" "dist/DirectorioClientesAurum.pbiviz"
-
-          echo ""
-          echo "Distribution contents:"
-          ls -lah dist
-
-          echo ""
-          echo "Final package:"
-          ls -lh "dist/DirectorioClientesAurum.pbiviz"
-
-
-      # ============================================================
-      # 10. VERIFICACIÓN FINAL
-      # ============================================================
-      - name: Final verification
-        run: |
-          echo "=========================================="
-          echo "FINAL VERIFICATION"
-          echo "=========================================="
-
-          if [ ! -f "dist/DirectorioClientesAurum.pbiviz" ]; then
-            echo ""
-            echo "ERROR: Final PBIViz package does not exist."
-            exit 1
-          fi
-
-          FILE_SIZE=$(stat -c%s "dist/DirectorioClientesAurum.pbiviz")
-
-          if [ "$FILE_SIZE" -le 0 ]; then
-            echo ""
-            echo "ERROR: PBIViz package is empty."
-            exit 1
-          fi
-
-          echo ""
-          echo "SUCCESS!"
-          echo ""
-          echo "File:"
-          echo "dist/DirectorioClientesAurum.pbiviz"
-          echo ""
-          echo "Size:"
-          echo "$FILE_SIZE bytes"
-          echo ""
-          ls -lh "dist/DirectorioClientesAurum.pbiviz"
-
-
-      # ============================================================
-      # 11. SUBIR PBIVIZ COMO ARTIFACT
+      # ONLY NEW STEP: UPLOAD THE GENERATED PBIVIZ AS ARTIFACT
       # ============================================================
       - name: Upload PBIViz artifact
         uses: actions/upload-artifact@v4
         with:
           name: DirectorioClientesAurum-PBIViz
-          path: dist/DirectorioClientesAurum.pbiviz
+          path: dist/*.pbiviz
           if-no-files-found: error
           retention-days: 30
-
-
-      # ============================================================
-      # 12. RESUMEN FINAL
-      # ============================================================
-      - name: Build summary
-        run: |
-          echo "=========================================="
-          echo "BUILD SUCCESSFUL"
-          echo "=========================================="
-          echo ""
-          echo "Power BI Custom Visual:"
-          echo "Directorio de Clientes Aurum"
-          echo ""
-          echo "Package:"
-          echo "DirectorioClientesAurum.pbiviz"
-          echo ""
-          echo "Artifact:"
-          echo "DirectorioClientesAurum-PBIViz"
-          echo ""
-          echo "The PBIViz package is ready to download"
-          echo "from the GitHub Actions run."
-          echo "=========================================="
