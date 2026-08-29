@@ -31,13 +31,14 @@ jobs:
         run: npm run package
 
       - name: Verify PBIViz
-        run: |
-          echo "=== Archivos PBIViz generados ==="
-          ls -lah *.pbiviz
+  run: |
+    echo "=== Buscando archivos PBIViz ==="
+    find . -type f -name "*.pbiviz" -print
 
-      - name: Upload PBIViz
-        uses: actions/upload-artifact@v4
-        with:
-          name: pbiviz-package
-          path: "*.pbiviz"
-          if-no-files-found: error
+    - name: Upload PBIViz
+  uses: actions/upload-artifact@v4
+  with:
+    name: pbiviz-package
+    path: "**/*.pbiviz"
+    if-no-files-found: error
+
