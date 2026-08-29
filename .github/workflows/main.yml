@@ -12,25 +12,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # ------------------------------------------------------------
-      # 1. Checkout
-      # ------------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ------------------------------------------------------------
-      # 2. Node.js
-      # ------------------------------------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      # ------------------------------------------------------------
-      # 3. Environment
-      # ------------------------------------------------------------
       - name: Show environment
         run: |
           echo "=========================================="
@@ -39,7 +28,6 @@ jobs:
           node --version
           npm --version
           echo ""
-          echo "Working directory:"
           pwd
           echo ""
           echo "Project files:"
@@ -48,24 +36,18 @@ jobs:
             ! -path './.git/*' \
             | sort
 
-      # ------------------------------------------------------------
-      # 4. Install dependencies
-      # ------------------------------------------------------------
       - name: Install dependencies
         run: |
           echo "=========================================="
           echo "INSTALLING DEPENDENCIES"
           echo "=========================================="
 
-          npm ci --no-fund --no-audit
+          npm install --no-fund --no-audit
 
           echo ""
-          echo "Installed Power BI Visual Tools:"
-          npm list powerbi-visuals-tools --depth=0 || true
+          echo "Power BI Visual Tools:"
+          npx pbiviz --version
 
-      # ------------------------------------------------------------
-      # 5. Validate PBIViz project
-      # ------------------------------------------------------------
       - name: Validate PBIViz project
         run: |
           echo "=========================================="
@@ -102,12 +84,8 @@ jobs:
             exit 1
           }
 
-          echo ""
           echo "PBIViz project structure OK."
 
-      # ------------------------------------------------------------
-      # 6. Clean previous build
-      # ------------------------------------------------------------
       - name: Clean build folders
         run: |
           echo "=========================================="
@@ -119,25 +97,14 @@ jobs:
 
           mkdir -p dist
 
-          echo "dist and .tmp cleaned."
-
-      # ------------------------------------------------------------
-      # 7. Build / package PBIViz
-      # ------------------------------------------------------------
       - name: Build PBIViz package
         run: |
           echo "=========================================="
           echo "BUILDING PBIVIZ PACKAGE"
           echo "=========================================="
 
-          echo "Running:"
-          echo "npx pbiviz package"
-
           npx pbiviz package
 
-      # ------------------------------------------------------------
-      # 8. Inspect build output
-      # ------------------------------------------------------------
       - name: Inspect build output
         if: always()
         run: |
@@ -164,7 +131,7 @@ jobs:
           fi
 
           echo ""
-          echo "--- ALL PBIVIZ FILES ---"
+          echo "--- PBIVIZ FILES ---"
 
           find . \
             -type f \
@@ -173,9 +140,6 @@ jobs:
             ! -path "./.git/*" \
             -print
 
-      # ------------------------------------------------------------
-      # 9. Verify package
-      # ------------------------------------------------------------
       - name: Verify PBIViz package
         run: |
           echo "=========================================="
@@ -190,11 +154,7 @@ jobs:
             echo ""
 
             echo "=== dist contents ==="
-            if [ -d "dist" ]; then
-              ls -lah dist
-            else
-              echo "dist does not exist"
-            fi
+            ls -lah dist 2>/dev/null || true
 
             echo ""
             echo "=== PBIVIZ search ==="
@@ -205,32 +165,14 @@ jobs:
               ! -path "./.git/*" \
               -print
 
-            echo ""
-            echo "=== Project structure ==="
-            find . -maxdepth 3 -type f \
-              ! -path "./node_modules/*" \
-              ! -path "./.git/*" \
-              | sort
-
             exit 1
           fi
 
           echo ""
-          echo "SUCCESS!"
-          echo ""
-          echo "PBIViz package:"
+          echo "SUCCESS: PBIViz found"
           echo "$PBIVIZ_FILE"
-          echo ""
-
           ls -lh "$PBIVIZ_FILE"
 
-          echo ""
-          echo "File type:"
-          file "$PBIVIZ_FILE"
-
-      # ------------------------------------------------------------
-      # 10. Rename package to predictable filename
-      # ------------------------------------------------------------
       - name: Prepare PBIViz artifact
         run: |
           echo "=========================================="
@@ -244,16 +186,11 @@ jobs:
             exit 1
           fi
 
-          cp "$PBIVIZ_FILE" \
-            "dist/DirectorioClientesAurum.pbiviz"
+          cp "$PBIVIZ_FILE" "dist/DirectorioClientesAurum.pbiviz"
 
           echo ""
-          echo "Final artifact:"
           ls -lh dist/DirectorioClientesAurum.pbiviz
 
-      # ------------------------------------------------------------
-      # 11. Upload artifact
-      # ------------------------------------------------------------
       - name: Upload PBIViz artifact
         uses: actions/upload-artifact@v4
         with:
@@ -261,19 +198,15 @@ jobs:
           path: dist/DirectorioClientesAurum.pbiviz
           if-no-files-found: error
 
-      # ------------------------------------------------------------
-      # 12. Final summary
-      # ------------------------------------------------------------
       - name: Build summary
         run: |
           echo "=========================================="
           echo "BUILD COMPLETED"
           echo "=========================================="
           echo ""
-          echo "PBIViz:"
-          ls -lh dist/DirectorioClientesAurum.pbiviz
-          echo ""
           echo "Artifact:"
           echo "DirectorioClientesAurum-PBIViz"
+          echo ""
+          ls -lh dist/DirectorioClientesAurum.pbiviz
           echo ""
           echo "STATUS: SUCCESS"
